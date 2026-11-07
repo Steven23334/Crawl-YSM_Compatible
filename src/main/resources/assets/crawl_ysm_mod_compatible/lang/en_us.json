@@ -1,0 +1,5 @@
+{
+  "crawl_ysm_mod_compatible.configuration.title": "Crawl YSM Compatible Configuration",
+  "crawl_ysm_mod_compatible.configuration.enabled": "Enable Pose Rewrite",
+  "crawl_ysm_mod_compatible.configuration.enabled.tooltip": "Whether to rewrite the Crawl mod's CRAWLING pose back to SWIMMING so Yes Steve Model can recognize both the Crawl mod crawl and the vanilla 1-block-high crawl.\nWhen disabled, the mixin leaves the pose untouched."
+}

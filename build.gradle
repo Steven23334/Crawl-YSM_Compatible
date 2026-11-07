@@ -1,0 +1,146 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id 'net.neoforged.moddev' version '2.0.144'
+    id 'idea'
+}
+
+tasks.named('wrapper', Wrapper).configure {
+    distributionType = Wrapper.DistributionType.BIN
+}
+
+version = mod_version
+group = mod_group_id
+
+sourceSets.main.resources {
+    srcDir('src/generated/resources')
+    exclude("**/*.bbmodel")
+    exclude("src/generated/**/.cache")
+}
+
+repositories {
+    // CurseMaven：curse.maven:... 坐标必须靠它解析
+    maven { url = "https://cursemaven.com" }
+    // 如果 YSM 不在本地 libs 而走远程，可加它的仓库
+}
+
+base {
+    archivesName = mod_id
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+neoForge {
+    version = project.neo_version
+
+    parchment {
+        mappingsVersion = project.parchment_mappings_version
+        minecraftVersion = project.parchment_minecraft_version
+    }
+
+    runs {
+        client {
+            client()
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+        server {
+            server()
+            programArgument '--nogui'
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+        gameTestServer {
+            type = "gameTestServer"
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+        data {
+            data()
+            programArguments.addAll '--mod', project.mod_id, '--all',
+                    '--output', file('src/generated/resources/').getAbsolutePath(),
+                    '--existing', file('src/main/resources/').getAbsolutePath()
+        }
+        configureEach {
+            systemProperty 'forge.logging.markers', 'REGISTRIES'
+            logLevel = org.slf4j.event.Level.DEBUG
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+configurations {
+    runtimeClasspath.extendsFrom localRuntime
+}
+
+dependencies {
+    // Crawl：联动需要，编译+运行时都要，用 implementation
+    implementation "curse.maven:crawl-314579:6311689"
+
+    // YSM：强制依赖，本地 jar。
+    // 不要写死文件名：libs 里的实际文件名带中文/下载站前缀（如
+    // "[是，史蒂夫模型] ysm-2.6.5-neoforge+mc1.21.1-release.jar"），
+    // 之前写死 yes_steve_model-1.21.1-2.6.5.jar 时文件并不存在，
+    // Gradle 会静默忽略缺失的文件依赖 → YSM 没进 classpath →
+    // 启动时 FML 报 "requires yes_steve_model any / not installed"。
+    // 用目录通配，换版本或改文件名都不会再失效。
+    // 注意：YSM 只用于编译期（本模组不直接调用它的类，只发 /ysm 命令），
+    // 运行时必须放到 run/mods/ 里当普通 mod 加载 —— 放 classpath 时
+    // YSM 的 native 库会初始化失败（err: 54 / "Incompatible system"）。
+    compileOnly fileTree(dir: "libs", include: ["*.jar"])
+}
+
+var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
+    var replaceProperties = [
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            neo_version            : neo_version,
+            loader_version_range   : loader_version_range,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+    ]
+    inputs.properties replaceProperties
+    expand replaceProperties
+    from "src/main/templates"
+    into "build/generated/sources/modMetadata"
+}
+sourceSets.main.resources.srcDir generateModMetadata
+neoForge.ideSyncTask generateModMetadata
+
+publishing {
+    publications {
+        register('mavenJava', MavenPublication) {
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            url "file://${project.projectDir}/repo"
+        }
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+idea {
+    module {
+        downloadSources = true
+        downloadJavadoc = true
+    }
+}
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)  // 强制使用 Java 21
+    }
+    withSourcesJar()  // <--- 就是这行，负责生成 -sources.jar
+}
+processResources {
+    // 设置编码，防止中文乱码（关键！）
+    filteringCharset = 'UTF-8'
+}

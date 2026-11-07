@@ -1,0 +1,5 @@
+{
+  "crawl_ysm_mod_compatible.configuration.title": "爬行 YSM 兼容 配置",
+  "crawl_ysm_mod_compatible.configuration.enabled": "启用姿势改写",
+  "crawl_ysm_mod_compatible.configuration.enabled.tooltip": "是否把 Crawl 模组的 CRAWLING 姿势改写回 SWIMMING，让 Yes Steve Model 能识别 Crawl 模组爬行和原版 1 格高爬行。\n关闭后 Mixin 不做任何修改，Crawl 模组的原始姿势保持不变。"
+}
